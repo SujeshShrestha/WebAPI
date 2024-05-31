@@ -11,43 +11,47 @@ using WebAPI.Repositories.Domain;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-builder.Services.AddDbContext<DatabaseContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("connString")));
 
+// Configure the database context
+builder.Services.AddDbContext<DatabaseContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("connString")));
+
+// Configure Identity
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>()
     .AddEntityFrameworkStores<DatabaseContext>()
     .AddDefaultTokenProviders();
+
+// Configure Swagger
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-var app = builder.Build();
-
-
-//Adding Jwt Bearer
+// Configure JWT authentication
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
     options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
     options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
 })
-    .AddJwtBearer(options =>
-    {
+.AddJwtBearer(options =>
+{
     options.SaveToken = true;
     options.RequireHttpsMetadata = false;
-        options.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters()
-                {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidAudience = builder.Configuration["JWT:ValidAudience"],
-            ValidIssuer = builder.Configuration["JWT:ValidaIssuer"],
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JWT:Secret"]))
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidAudience = builder.Configuration["JWT:ValidAudience"],
+        ValidIssuer = builder.Configuration["JWT:ValidIssuer"],
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JWT:Secret"]))
+    };
+});
 
-        };
-        
-    });
+// Add application services
 builder.Services.AddTransient<ITokenService, TokenService>();
+
+var app = builder.Build();
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
@@ -56,12 +60,18 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseCors(
-    options => options.WithOrigins("*")
-    .AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
+
+// Configure CORS
+app.UseCors(options => options
+    .AllowAnyOrigin()
+    .AllowAnyMethod()
+    .AllowAnyHeader());
+
+// Configure authentication and authorization
 app.UseAuthentication();
 app.UseAuthorization();
 
+// Map controllers
 app.MapControllers();
 
 app.Run();
